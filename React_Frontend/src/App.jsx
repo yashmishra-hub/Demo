@@ -137,7 +137,8 @@ function App() {
       setSources(data.sources || [])
     } catch (error) {
       setAnswer(
-        error.message || 'Something went wrong while querying the document.'
+        error.message ||
+        'Something went wrong while querying the document.'
       )
     } finally {
       setAsking(false)
@@ -151,6 +152,7 @@ function App() {
 
         <div className="brand">
           <span className="brand-mark">D</span>
+
           <span>
             documind<span className="brand-dot">.</span>
           </span>
@@ -171,6 +173,7 @@ function App() {
 
         <div className="env">
           <span className={`tiny-dot ${health}`}></span>
+
           <span>
             {health === 'online'
               ? 'Backend online'
@@ -197,13 +200,17 @@ function App() {
           </div>
 
           <div className="top-right">
+
             <span className="env-pill">
-              {health === 'online' ? 'LIVE' : 'OFFLINE'}
+              {health === 'online'
+                ? 'LIVE'
+                : 'OFFLINE'}
             </span>
 
             <span className="avatar">
               D
             </span>
+
           </div>
 
         </header>
@@ -213,6 +220,7 @@ function App() {
           <div className="intro-row">
 
             <div>
+
               <div className="overline">
                 DOCUMENT INTELLIGENCE
               </div>
@@ -225,23 +233,34 @@ function App() {
                 Upload a PDF and ask questions using
                 retrieval-augmented generation.
               </p>
+
             </div>
 
           </div>
 
 
+          {/* UPLOAD DOCUMENT */}
+
           <section className="card">
 
             <div className="section-title">
-              <span className="step-number">1</span>
+
+              <span className="step-number">
+                1
+              </span>
 
               <div>
-                <h2>Upload document</h2>
+
+                <h2>
+                  Upload document
+                </h2>
 
                 <p>
                   Upload a PDF to build your document knowledge base.
                 </p>
+
               </div>
+
             </div>
 
             <div className="upload-box">
@@ -254,6 +273,7 @@ function App() {
               />
 
               <label htmlFor="pdf-upload">
+
                 <span className="upload-icon">
                   ↑
                 </span>
@@ -269,6 +289,7 @@ function App() {
                     ? `${(selectedFile.size / 1024 / 1024).toFixed(2)} MB`
                     : 'PDF files up to 20 MB'}
                 </span>
+
               </label>
 
             </div>
@@ -293,17 +314,30 @@ function App() {
               <div className="document-info">
 
                 <div>
-                  <span>DOCUMENT</span>
-                  <strong>{document.filename}</strong>
+                  <span>
+                    DOCUMENT
+                  </span>
+
+                  <strong>
+                    {document.filename}
+                  </strong>
                 </div>
 
                 <div>
-                  <span>CHUNKS</span>
-                  <strong>{document.chunks}</strong>
+                  <span>
+                    CHUNKS
+                  </span>
+
+                  <strong>
+                    {document.chunks}
+                  </strong>
                 </div>
 
                 <div>
-                  <span>CHARACTERS</span>
+                  <span>
+                    CHARACTERS
+                  </span>
+
                   <strong>
                     {document.characters.toLocaleString()}
                   </strong>
@@ -315,18 +349,28 @@ function App() {
           </section>
 
 
+          {/* ASK QUESTION */}
+
           <section className="card">
 
             <div className="section-title">
-              <span className="step-number">2</span>
+
+              <span className="step-number">
+                2
+              </span>
 
               <div>
-                <h2>Ask a question</h2>
+
+                <h2>
+                  Ask a question
+                </h2>
 
                 <p>
                   Ask anything about the uploaded document.
                 </p>
+
               </div>
+
             </div>
 
             <form onSubmit={askQuestion}>
@@ -348,7 +392,11 @@ function App() {
               <button
                 className="primary-button"
                 type="submit"
-                disabled={!document || asking || !question.trim()}
+                disabled={
+                  !document ||
+                  asking ||
+                  !question.trim()
+                }
               >
                 {asking
                   ? 'Searching & generating answer…'
@@ -360,57 +408,73 @@ function App() {
           </section>
 
 
+          {/* ANSWER */}
+
           {answer && (
             <section className="card answer-card">
 
               <div className="answer-heading">
+
                 <span className="answer-icon">
                   ✦
                 </span>
 
                 <div>
+
                   <div className="overline">
                     RAG RESPONSE
                   </div>
 
-                  <h2>Answer</h2>
+                  <h2>
+                    Answer
+                  </h2>
+
                 </div>
+
               </div>
 
               <div className="answer">
                 {answer}
               </div>
 
+
+              {/* OPTIONAL SOURCES */}
+
               {sources.length > 0 && (
-                <div className="sources">
+                <details className="sources">
 
-                  <h3>
-                    Retrieved sources
-                  </h3>
+                  <summary>
+                    Show retrieved sources
+                  </summary>
 
-                  {sources.map((source, index) => (
-                    <div
-                      className="source"
-                      key={index}
-                    >
-                      <div className="source-header">
-                        <strong>
-                          Chunk {source.chunk_index + 1}
-                        </strong>
+                  <div className="sources-content">
 
-                        <span>
-                          Similarity:{' '}
-                          {source.score.toFixed(3)}
-                        </span>
+                    {sources.map((source, index) => (
+
+                      <div
+                        className="source"
+                        key={index}
+                      >
+
+                        <div className="source-header">
+
+                          <strong>
+                            Source {index + 1}
+                          </strong>
+
+                        </div>
+
+                        <p>
+                          {source.text}
+                        </p>
+
                       </div>
 
-                      <p>
-                        {source.text}
-                      </p>
-                    </div>
-                  ))}
+                    ))}
 
-                </div>
+                  </div>
+
+                </details>
               )}
 
             </section>
