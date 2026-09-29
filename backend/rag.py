@@ -9,7 +9,7 @@ from google.genai import types
 
 
 EMBEDDING_MODEL = "gemini-embedding-001"
-LLM_MODEL = "gemini-2.5-flash"
+LLM_MODEL = "gemini-3.8-flash"
 
 CHUNK_SIZE = 1200
 CHUNK_OVERLAP = 200
