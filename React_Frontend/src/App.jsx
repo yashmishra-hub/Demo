@@ -3,39 +3,31 @@ import './App.css'
 
 const API = 'https://demo-3ian.onrender.com'
 
-const sample = {
-  message: 'Hello from DocuMind',
-  source: 'frontend-demo'
-}
-
 function App() {
   const [health, setHealth] = useState('checking')
-  const [message, setMessage] = useState('Connecting to API…')
-  const [payload, setPayload] = useState(JSON.stringify(sample, null, 2))
-  const [response, setResponse] = useState(null)
-  const [requestState, setRequestState] = useState('')
-  const [busy, setBusy] = useState(false)
+
+  const [selectedFile, setSelectedFile] = useState(null)
+  const [uploading, setUploading] = useState(false)
+  const [uploadMessage, setUploadMessage] = useState('')
+  const [document, setDocument] = useState(null)
+
+  const [question, setQuestion] = useState('')
+  const [asking, setAsking] = useState(false)
+  const [answer, setAnswer] = useState('')
+  const [sources, setSources] = useState([])
 
   async function checkHealth() {
-    setHealth('checking')
-
     try {
-      const [rootRes, healthRes] = await Promise.all([
-        fetch(`${API}/`),
-        fetch(`${API}/health`)
-      ])
+      const response = await fetch(`${API}/health`)
 
-      if (!rootRes.ok || !healthRes.ok) {
-        throw new Error('API returned an error')
+      if (!response.ok) {
+        throw new Error()
       }
 
-      const root = await rootRes.json()
-      const status = await healthRes.json()
+      const data = await response.json()
 
-      setMessage(root.message || 'API is responding')
-      setHealth(status.status === 'ok' ? 'online' : 'degraded')
+      setHealth(data.status === 'ok' ? 'online' : 'offline')
     } catch {
-      setMessage('Unable to reach the backend. Check the API connection.')
       setHealth('offline')
     }
   }
@@ -44,65 +36,111 @@ function App() {
     checkHealth()
   }, [])
 
-  async function sendEcho(event) {
-    event.preventDefault()
+  function handleFileChange(event) {
+    const file = event.target.files?.[0]
 
-    let body
-
-    try {
-      body = JSON.parse(payload)
-
-      if (
-        !body ||
-        Array.isArray(body) ||
-        typeof body !== 'object'
-      ) {
-        throw new Error(
-          'Enter a JSON object, not an array or a value.'
-        )
-      }
-    } catch (error) {
-      setRequestState(
-        error instanceof SyntaxError
-          ? 'Invalid JSON. Check commas, quotes and braces.'
-          : error.message
-      )
-      setResponse(null)
+    if (!file) {
+      setSelectedFile(null)
       return
     }
 
-    setBusy(true)
-    setRequestState('Sending request…')
-    setResponse(null)
+    if (file.type !== 'application/pdf') {
+      setUploadMessage('Please select a PDF file.')
+      setSelectedFile(null)
+      return
+    }
+
+    setSelectedFile(file)
+    setUploadMessage('')
+  }
+
+  async function uploadDocument() {
+    if (!selectedFile) {
+      setUploadMessage('Please select a PDF first.')
+      return
+    }
+
+    setUploading(true)
+    setUploadMessage('')
+    setDocument(null)
+    setAnswer('')
+    setSources([])
 
     try {
-      const res = await fetch(`${API}/echo`, {
+      const formData = new FormData()
+
+      formData.append('file', selectedFile)
+
+      const response = await fetch(`${API}/upload`, {
+        method: 'POST',
+        body: formData
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(
+          data.detail || 'Document upload failed.'
+        )
+      }
+
+      setDocument(data)
+
+      setUploadMessage(
+        `✓ ${data.filename} processed successfully. ${data.chunks} chunks created.`
+      )
+    } catch (error) {
+      setUploadMessage(
+        error.message || 'Unable to upload document.'
+      )
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  async function askQuestion(event) {
+    event.preventDefault()
+
+    if (!question.trim()) {
+      return
+    }
+
+    if (!document) {
+      setAnswer('Please upload a document first.')
+      return
+    }
+
+    setAsking(true)
+    setAnswer('')
+    setSources([])
+
+    try {
+      const response = await fetch(`${API}/query`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(body)
+        body: JSON.stringify({
+          question: question.trim()
+        })
       })
 
-      const data = await res.json()
+      const data = await response.json()
 
-      if (!res.ok) {
+      if (!response.ok) {
         throw new Error(
-          data.detail ||
-          data.error ||
-          `Request failed (${res.status})`
+          data.detail || 'Unable to answer the question.'
         )
       }
 
-      setResponse(data)
-      setRequestState('Request completed successfully')
+      setAnswer(data.answer || 'No answer was generated.')
+      setSources(data.sources || [])
     } catch (error) {
-      setRequestState(
-        error.message ||
-        'Request failed. Check the backend connection.'
+      setAnswer(
+        error.message || 'Something went wrong while querying the document.'
       )
     } finally {
-      setBusy(false)
+      setAsking(false)
     }
   }
 
@@ -124,22 +162,28 @@ function App() {
 
         <div className="nav-item active">
           <span className="nav-icon">▦</span>
-          API Playground
+          Document Q&A
         </div>
 
         <div className="side-label side-bottom">
-          DEMO ENVIRONMENT
+          SYSTEM STATUS
         </div>
 
         <div className="env">
           <span className={`tiny-dot ${health}`}></span>
-          <span>Live deployment</span>
+          <span>
+            {health === 'online'
+              ? 'Backend online'
+              : health === 'checking'
+                ? 'Checking backend'
+                : 'Backend offline'}
+          </span>
         </div>
 
         <div className="sidebar-foot">
           ACA Summer Project
           <br />
-          2026 · Demo
+          2026 · DocuMind
         </div>
 
       </aside>
@@ -149,12 +193,12 @@ function App() {
         <header className="topbar">
 
           <div className="crumb">
-            Workspace <span>/</span> API Playground
+            Workspace <span>/</span> Document Q&A
           </div>
 
           <div className="top-right">
             <span className="env-pill">
-              LIVE
+              {health === 'online' ? 'LIVE' : 'OFFLINE'}
             </span>
 
             <span className="avatar">
@@ -169,295 +213,208 @@ function App() {
           <div className="intro-row">
 
             <div>
-
               <div className="overline">
-                DEVELOPER WORKSPACE
+                DOCUMENT INTELLIGENCE
               </div>
 
               <h1>
-                API Playground
+                Ask your documents.
               </h1>
 
-              <p className="subhead">
-                Explore the DocuMind demo API and verify your backend connection.
+              <p className="subtitle">
+                Upload a PDF and ask questions using
+                retrieval-augmented generation.
               </p>
+            </div>
+
+          </div>
+
+
+          <section className="card">
+
+            <div className="section-title">
+              <span className="step-number">1</span>
+
+              <div>
+                <h2>Upload document</h2>
+
+                <p>
+                  Upload a PDF to build your document knowledge base.
+                </p>
+              </div>
+            </div>
+
+            <div className="upload-box">
+
+              <input
+                id="pdf-upload"
+                type="file"
+                accept=".pdf,application/pdf"
+                onChange={handleFileChange}
+              />
+
+              <label htmlFor="pdf-upload">
+                <span className="upload-icon">
+                  ↑
+                </span>
+
+                <strong>
+                  {selectedFile
+                    ? selectedFile.name
+                    : 'Choose a PDF'}
+                </strong>
+
+                <span>
+                  {selectedFile
+                    ? `${(selectedFile.size / 1024 / 1024).toFixed(2)} MB`
+                    : 'PDF files up to 20 MB'}
+                </span>
+              </label>
 
             </div>
 
             <button
-              className="refresh"
-              onClick={checkHealth}
-              type="button"
+              className="primary-button"
+              onClick={uploadDocument}
+              disabled={uploading || !selectedFile}
             >
-              ↻ <span>Refresh status</span>
+              {uploading
+                ? 'Processing document…'
+                : 'Upload & Process'}
             </button>
 
-          </div>
-
-          <section className="connection card">
-
-            <div className="connection-left">
-
-              <div className={`status-icon ${health}`}>
-                {health === 'online'
-                  ? '✓'
-                  : health === 'checking'
-                    ? '…'
-                    : '!'}
+            {uploadMessage && (
+              <div className="status-message">
+                {uploadMessage}
               </div>
+            )}
+
+            {document && (
+              <div className="document-info">
+
+                <div>
+                  <span>DOCUMENT</span>
+                  <strong>{document.filename}</strong>
+                </div>
+
+                <div>
+                  <span>CHUNKS</span>
+                  <strong>{document.chunks}</strong>
+                </div>
+
+                <div>
+                  <span>CHARACTERS</span>
+                  <strong>
+                    {document.characters.toLocaleString()}
+                  </strong>
+                </div>
+
+              </div>
+            )}
+
+          </section>
+
+
+          <section className="card">
+
+            <div className="section-title">
+              <span className="step-number">2</span>
 
               <div>
+                <h2>Ask a question</h2>
 
-                <div className="card-kicker">
-                  BACKEND CONNECTION
-                </div>
-
-                <div className="connection-title">
-
-                  {health === 'online'
-                    ? 'Backend is connected'
-                    : health === 'checking'
-                      ? 'Checking connection…'
-                      : 'Backend unavailable'}
-
-                </div>
-
-                <div className="connection-desc">
-                  {message}
-                </div>
-
+                <p>
+                  Ask anything about the uploaded document.
+                </p>
               </div>
-
             </div>
 
-            <div className={`status-badge ${health}`}>
-
-              <span className="tiny-dot"></span>
-
-              {health === 'online'
-                ? 'Operational'
-                : health === 'checking'
-                  ? 'Checking'
-                  : 'Offline'}
-
-            </div>
-
-          </section>
-
-          <div className="section-title">
-
-            <div>
-
-              <h2>
-                Available endpoints
-              </h2>
-
-              <p>
-                Use these routes to check connectivity and test JSON requests.
-              </p>
-
-            </div>
-
-          </div>
-
-          <div className="endpoint-grid">
-
-            <div className="endpoint-card">
-
-              <div className="endpoint-top">
-
-                <span className="method get">
-                  GET
-                </span>
-
-                <span className="endpoint-path">
-                  /
-                </span>
-
-              </div>
-
-              <div className="endpoint-name">
-                Root
-              </div>
-
-              <p>
-                Returns a welcome message from the backend.
-              </p>
-
-            </div>
-
-            <div className="endpoint-card">
-
-              <div className="endpoint-top">
-
-                <span className="method get">
-                  GET
-                </span>
-
-                <span className="endpoint-path">
-                  /health
-                </span>
-
-              </div>
-
-              <div className="endpoint-name">
-                Health check
-              </div>
-
-              <p>
-                Reports whether the API service is healthy.
-              </p>
-
-            </div>
-
-            <div className="endpoint-card">
-
-              <div className="endpoint-top">
-
-                <span className="method post">
-                  POST
-                </span>
-
-                <span className="endpoint-path">
-                  /echo
-                </span>
-
-              </div>
-
-              <div className="endpoint-name">
-                Echo payload
-              </div>
-
-              <p>
-                Accepts a JSON object and returns it in the response.
-              </p>
-
-            </div>
-
-          </div>
-
-          <section className="section-title test-title">
-
-            <div>
-
-              <h2>
-                Request tester
-              </h2>
-
-              <p>
-                Send a JSON payload to <code>POST /echo</code>.
-              </p>
-
-            </div>
-
-            <span className="test-tag">
-              LIVE API
-            </span>
-
-          </section>
-
-          <div className="tester card">
-
-            <form onSubmit={sendEcho}>
-
-              <div className="editor-head">
-
-                <label htmlFor="payload">
-
-                  REQUEST BODY
-                  <span>
-                    · application/json
-                  </span>
-
-                </label>
-
-                <button
-                  className="text-button"
-                  type="button"
-                  onClick={() => {
-                    setPayload(
-                      JSON.stringify(sample, null, 2)
-                    )
-                    setRequestState('')
-                  }}
-                >
-                  Reset example
-                </button>
-
-              </div>
+            <form onSubmit={askQuestion}>
 
               <textarea
-                id="payload"
-                spellCheck="false"
-                value={payload}
-                onChange={(e) =>
-                  setPayload(e.target.value)
+                className="question-input"
+                placeholder={
+                  document
+                    ? 'e.g. What are the main conclusions of this document?'
+                    : 'Upload a document first…'
                 }
-                rows={7}
+                value={question}
+                onChange={(event) =>
+                  setQuestion(event.target.value)
+                }
+                disabled={!document || asking}
               />
 
-              <div className="submit-row">
-
-                <span
-                  className="request-status"
-                  role="status"
-                >
-                  {requestState}
-                </span>
-
-                <button
-                  className="send-button"
-                  type="submit"
-                  disabled={busy}
-                >
-                  {busy
-                    ? 'Sending…'
-                    : '▶ Send request'}
-                </button>
-
-              </div>
+              <button
+                className="primary-button"
+                type="submit"
+                disabled={!document || asking || !question.trim()}
+              >
+                {asking
+                  ? 'Searching & generating answer…'
+                  : 'Ask Question'}
+              </button>
 
             </form>
 
-            {response && (
+          </section>
 
-              <div className="response">
 
-                <div className="response-head">
+          {answer && (
+            <section className="card answer-card">
 
-                  <span>
-                    RESPONSE
-                  </span>
+              <div className="answer-heading">
+                <span className="answer-icon">
+                  ✦
+                </span>
 
-                  <span className="success-label">
-                    ● 200 OK
-                  </span>
+                <div>
+                  <div className="overline">
+                    RAG RESPONSE
+                  </div>
 
+                  <h2>Answer</h2>
                 </div>
-
-                <pre>
-                  {JSON.stringify(
-                    response,
-                    null,
-                    2
-                  )}
-                </pre>
-
               </div>
 
-            )}
+              <div className="answer">
+                {answer}
+              </div>
 
-          </div>
+              {sources.length > 0 && (
+                <div className="sources">
 
-          <footer>
+                  <h3>
+                    Retrieved sources
+                  </h3>
 
-            DocuMind · Demo environment
+                  {sources.map((source, index) => (
+                    <div
+                      className="source"
+                      key={index}
+                    >
+                      <div className="source-header">
+                        <strong>
+                          Chunk {source.chunk_index + 1}
+                        </strong>
 
-            <span>
-              API base URL: {API}
-            </span>
+                        <span>
+                          Similarity:{' '}
+                          {source.score.toFixed(3)}
+                        </span>
+                      </div>
 
-          </footer>
+                      <p>
+                        {source.text}
+                      </p>
+                    </div>
+                  ))}
+
+                </div>
+              )}
+
+            </section>
+          )}
 
         </section>
 
