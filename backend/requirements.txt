@@ -1,5 +1,6 @@
 fastapi
 uvicorn
-Flask
-Authlib
-python-dotenv
+python-multipart
+pypdf
+numpy
+google-genai
